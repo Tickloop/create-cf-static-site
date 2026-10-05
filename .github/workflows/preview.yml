@@ -1,0 +1,62 @@
+# Pull requests: run checks, deploy a Worker Preview, and post its URL on the PR.
+name: Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# A newer push to the same PR supersedes an in-flight preview.
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
+
+  preview:
+    needs: checks
+    # Fork and Dependabot PRs don't receive repository secrets, so they get
+    # checks only, no preview.
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      CF_SEND_TELEMETRY: "false"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: make preview PREVIEW_NAME=pr-${{ github.event.pull_request.number }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - id: url
+        run: echo "url=$(make -s preview-url)" >> "$GITHUB_OUTPUT"
+      - name: Comment preview URL on the PR
+        uses: actions/github-script@v9
+        env:
+          PREVIEW_URL: ${{ steps.url.outputs.url }}
+        with:
+          script: |
+            // One comment per PR, updated in place on every push.
+            const marker = "<!-- static-site-preview -->";
+            const body = [
+              marker,
+              `**Preview:** ${process.env.PREVIEW_URL}`,
+              "",
+              `Commit ${context.payload.pull_request.head.sha.slice(0, 7)}. Updates on every push to this PR.`,
+            ].join("\n");
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const existing = comments.find((c) => c.user.type === "Bot" && c.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }

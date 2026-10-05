@@ -1,0 +1,32 @@
+# Reusable: everything that must pass before any deploy. Needs no secrets, so it
+# also runs for pull requests from forks.
+name: Checks
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  site:
+    name: Site (unit tests + build + dist check)
+    runs-on: ubuntu-latest
+    env:
+      CF_SEND_TELEMETRY: "false"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: make test
+      - run: make build
+
+  infra:
+    name: Infra (fmt + validate + mocked tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: opentofu/setup-opentofu@v2
+        with:
+          tofu_wrapper: false
+      - run: make infra-validate
+      - run: make infra-test

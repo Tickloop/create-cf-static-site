@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Static Site Skeleton</title>
+	<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+	<main>
+		<h1>It works.</h1>
+		<p>Served from Cloudflare Workers Static Assets.</p>
+		<!--
+			Heavy media lives in R2, not in this repo. Reference it by absolute URL:
+			  <img src="https://cdn.example.com/images/hero.jpg" alt="...">
+			`make infra-output` prints the media base URL.
+		-->
+		<p><a href="/about/">About</a></p>
+	</main>
+</body>
+</html>
