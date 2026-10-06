@@ -10,8 +10,8 @@ import { checkDist } from "../scripts/lib/dist-checks.mjs";
 const site = JSON.parse(readFileSync(new URL("../site.json", import.meta.url), "utf8"));
 
 describe("site.json", () => {
-	it("has exactly the keys OpenTofu declares as variables", () => {
-		// `tofu -var-file=../site.json` only warns on undeclared keys, so a key added
+	it("has exactly the keys Terraform declares as variables", () => {
+		// `terraform -var-file=../site.json` only warns on undeclared keys, so a key added
 		// here without a matching variable in infra/variables.tf would be silently ignored.
 		assert.deepEqual(Object.keys(site).sort(), ["cdn_subdomain", "domain", "project_name"]);
 	});

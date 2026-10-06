@@ -25,8 +25,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: opentofu/setup-opentofu@v2
+      - uses: hashicorp/setup-terraform@v4
         with:
-          tofu_wrapper: false
+          terraform_wrapper: false
       - run: make infra-validate
       - run: make infra-test

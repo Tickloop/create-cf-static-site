@@ -8,7 +8,7 @@ S3 + CloudFront:
 - **Heavy media** → an R2 bucket on `cdn.<domain>`, edge-cached, with free egress.
 - **CI/CD** → GitHub Actions: every PR gets a preview URL comment, and every
   push to `main` deploys to production.
-- **Infra** → OpenTofu (state in R2): bucket, CDN domain, cache and hotlink rules.
+- **Infra** → Terraform (state in R2): bucket, CDN domain, cache and hotlink rules.
 
 Works with any static site generator. Anything that writes to `dist/` works,
 and the example site is plain HTML. The only dependency is the
@@ -17,7 +17,7 @@ and the example site is plain HTML. The only dependency is the
 ```
 PR push      → make test + make build → make preview → Worker Preview → URL comment on PR
 push to main → make test + make build → make deploy  → production
-you, locally → make media-sync  (media/ → R2)   ·   make infra-plan / infra-apply  (OpenTofu)
+you, locally → make media-sync  (media/ → R2)   ·   make infra-plan / infra-apply  (Terraform)
 ```
 
 ## Getting started
@@ -50,13 +50,13 @@ Run `make help` for the full list.
 | `make media-sync[-dry]` | Upload new/changed `media/` files to R2 |
 | `make media-prune[-dry]` | Mirror `media/` to R2, deleting remote extras (`CONFIRM=yes`) |
 | `make infra-plan` / `infra-apply` | Review, then apply, infrastructure changes |
-| `make infra-validate` / `infra-test` | OpenTofu checks (no credentials needed) |
+| `make infra-validate` / `infra-test` | Terraform checks (no credentials needed) |
 
 ## Where things are configured
 
 | What | Where |
 | --- | --- |
-| Project name, domain, CDN subdomain | `site.json` (read by both cf and OpenTofu) |
+| Project name, domain, CDN subdomain | `site.json` (read by both cf and Terraform) |
 | Worker behaviour (404s, trailing slashes) | `cloudflare.config.ts` |
 | Response headers | `site/_headers` |
 | Infra tunables (cache TTL, hotlink, bucket region) | `infra/terraform.tfvars` |

@@ -1,5 +1,5 @@
 import { defineConfig } from "cf/config";
-// site.json is the single source of truth for site identity. OpenTofu reads the
+// site.json is the single source of truth for site identity. Terraform reads the
 // same file (`-var-file=../site.json`), so names and domains can't drift apart.
 import site from "./site.json" with { type: "json" };
 

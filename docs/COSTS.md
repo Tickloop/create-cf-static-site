@@ -22,7 +22,7 @@ Prices below are Cloudflare's published rates as of 2026. Check
    (`infra/domain.tf`) removes query strings from the cache key and keeps
    media at the edge for 30 days (`media_edge_ttl_seconds`).
 2. **The uncached `r2.dev` URL.** Every request is a billable read, and the
-   URL is rate-limited. *Guard:* OpenTofu disables `r2.dev` as soon as a
+   URL is rate-limited. *Guard:* Terraform disables `r2.dev` as soon as a
    domain is set.
 3. **Hotlinking.** Other sites embed your media and spend your read
    allowance. *Guard:* `enable_hotlink_protection = true`.

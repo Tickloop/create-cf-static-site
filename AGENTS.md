@@ -5,14 +5,14 @@ Instructions for coding agents working in this repo. Humans: start with
 
 This is a **skeleton for static sites on Cloudflare's free tier**: the site is
 served by Workers Static Assets, heavy media lives in R2, GitHub Actions
-deploys, and OpenTofu provisions the infrastructure. It has no server code by
+deploys, and Terraform provisions the infrastructure. It has no server code by
 design.
 
 ```
 PR push      → checks → make preview PREVIEW_NAME=pr-N → cf previews deploy --prebuilt → URL comment
 push to main → checks → make deploy                    → cf deploy --prebuilt          → production
 human, local → make media-sync                         → rclone → R2 media bucket (cdn.<domain>)
-human, local → make infra-plan / infra-apply           → OpenTofu → R2 bucket, cdn domain, cache/WAF rules
+human, local → make infra-plan / infra-apply           → Terraform → R2 bucket, cdn domain, cache/WAF rules
 ```
 
 ## Rules (read before changing anything)
@@ -27,7 +27,7 @@ human, local → make infra-plan / infra-apply           → OpenTofu → R2 buc
 3. **Do not add Wrangler or Vite.** The only runtime dependency is the `cf`
    CLI, pinned to an exact version in `package.json`.
 4. **`site.json` is the single source of truth** for `project_name`, `domain`
-   and `cdn_subdomain`. `cloudflare.config.ts` imports it, and OpenTofu reads it
+   and `cdn_subdomain`. `cloudflare.config.ts` imports it, and Terraform reads it
    with `-var-file=../site.json`. A new key needs a matching variable in
    `infra/variables.tf` and an update to `tests/project-config.test.mjs`.
 5. **Secrets live only in `.env` (local) and GitHub secrets (CI).** Never
@@ -36,7 +36,7 @@ human, local → make infra-plan / infra-apply           → OpenTofu → R2 buc
 6. **Infrastructure changes need human approval.** You may run
    `make infra-validate`, `make infra-test` and `make infra-plan`. Show the plan
    and wait for the human to approve before you run `make infra-apply`. CI never
-   runs OpenTofu apply.
+   runs Terraform apply.
 7. **Media never goes in git or `dist/`.** Large files go in `media/`
    (gitignored), are uploaded with `make media-sync`, and are referenced by the
    absolute URL from `make infra-output` (`media_base_url`). `make check` fails
@@ -53,7 +53,7 @@ human, local → make infra-plan / infra-apply           → OpenTofu → R2 buc
 
 | Path | What it is |
 | --- | --- |
-| `site.json` | Site identity shared by cf and OpenTofu |
+| `site.json` | Site identity shared by cf and Terraform |
 | `cloudflare.config.ts` | Worker config: assets-only, 404/trailing-slash handling, domain (prod only) |
 | `site/` | Example site source. Replace it with your generator's source |
 | `scripts/build-site.mjs` | Example "generator" (copies `site/` → `dist/`). The swap point |
@@ -61,8 +61,8 @@ human, local → make infra-plan / infra-apply           → OpenTofu → R2 buc
 | `scripts/check-dist.mjs`, `scripts/lib/dist-checks.mjs` | Pre-deploy checks on `dist/` |
 | `scripts/preview-url.mjs`, `scripts/lib/preview-result.mjs` | Extracts the preview URL for the PR comment |
 | `tests/*.test.mjs` | Unit tests (`make test`, Node's built-in runner, no deps) |
-| `infra/` | OpenTofu: media bucket, r2.dev, `cdn.` domain, cache + hotlink rules |
-| `infra/tests/` | OpenTofu tests against a mocked provider (`make infra-test`) |
+| `infra/` | Terraform: media bucket, r2.dev, `cdn.` domain, cache + hotlink rules |
+| `infra/tests/` | Terraform tests against a mocked provider (`make infra-test`) |
 | `.github/workflows/` | `checks.yml` (reusable), `preview.yml` (PRs), `deploy.yml` (main) |
 | `.github/actions/setup/` | Node + `npm ci`, shared by the workflows |
 | `media/` | Local media to upload. Gitignored except `.gitkeep` |
@@ -76,8 +76,8 @@ Run all of these before you say a change is done. None of them need credentials.
 ```sh
 make test            # unit tests
 make build           # site build + dist checks + Build Output packaging
-make infra-validate  # tofu fmt -check + validate
-make infra-test      # tofu tests (mocked provider)
+make infra-validate  # terraform fmt -check + validate
+make infra-test      # terraform tests (mocked provider)
 ```
 
 If you edited `.github/`, also run `actionlint` if it's available. To check
@@ -144,7 +144,7 @@ filenames, or purge the URL (`npx --no-install cf cli search "purge cache by url
 Changing `project_name` after the first apply creates a **new** Worker, a new
 media bucket (blocked by `prevent_destroy` on the old one) and a new state key.
 Stop and ask the human first. They need to choose between migrating state
-(`make infra-tofu ARGS="..."`) and starting fresh.
+(`make infra-terraform ARGS="..."`) and starting fresh.
 
 ### Add server-side logic
 
@@ -158,7 +158,7 @@ Discuss it with the human before starting.
 | Symptom | Cause / fix |
 | --- | --- |
 | `make preview` fails because the Worker doesn't exist | Previews attach to an existing Worker. Run `make deploy` once (HUMAN_SETUP step 7) |
-| `infra-apply`: ruleset for phase already exists | The zone already has dashboard cache or WAF rules. Import it: `make infra-tofu ARGS="import 'cloudflare_ruleset.media_cache[0]' 'zones/<zone_id>/<ruleset_id>'"`, then re-plan |
+| `infra-apply`: ruleset for phase already exists | The zone already has dashboard cache or WAF rules. Import it: `make infra-terraform ARGS="import 'cloudflare_ruleset.media_cache[0]' 'zones/<zone_id>/<ruleset_id>'"`, then re-plan |
 | `infra-init` says the backend configuration changed | `project_name` or `TFSTATE_BUCKET` changed. See "Rename the project". Don't pass `-reconfigure` blindly, because that starts from empty state |
 | `cf` asks about `--mode` | This project's Build Output records no mode. Never pass `--mode` |
 | `This build output is for a Preview` | Production was deployed from preview output. `make deploy` rebuilds, so use it rather than raw `cf` |

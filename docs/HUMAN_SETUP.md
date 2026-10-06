@@ -14,7 +14,7 @@ Legend: 🧑 = only you can do it · 🤖 = an agent can run it once the 🧑 st
 | Tool | Why | Install |
 | --- | --- | --- |
 | fnm + Node 24 | runs `cf` and the build scripts | `fnm install` (reads `.nvmrc`) then `fnm use` |
-| OpenTofu ≥ 1.10 | provisions R2 + zone rules | <https://opentofu.org/docs/intro/install/> |
+| Terraform ≥ 1.10 | provisions R2 + zone rules | <https://developer.hashicorp.com/terraform/install> (macOS: `brew install hashicorp/tap/terraform`) |
 | rclone | syncs `media/` to R2 | <https://rclone.org/install/> |
 | git, make, python3 | repo, task runner, `make serve` | usually preinstalled |
 
@@ -43,7 +43,7 @@ because Make reads the file literally. `.env` is gitignored, so never commit it.
 
 ## 4. Local "operator" API token 🧑
 
-This token is used on your machine by OpenTofu and for manual deploys. CI gets a
+This token is used on your machine by Terraform and for manual deploys. CI gets a
 separate, smaller token in step 8.
 
 **My Profile → API Tokens → Create Token → Custom token**:
@@ -65,7 +65,7 @@ Limit it to your account (and, later, your zone). Put it in `.env` as
 > with an authentication or permission error, the error names the missing
 > permission. Add it to the token and re-run.
 
-## 5. OpenTofu state bucket 🧑 + 🤖
+## 5. Terraform state bucket 🧑 + 🤖
 
 1. 🤖 `make infra-bootstrap` creates the private `TFSTATE_BUCKET` (default
    `tfstate`). It's safe to re-run.

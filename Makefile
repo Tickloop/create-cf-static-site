@@ -13,7 +13,7 @@ export CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_API_TOKEN
 
 # --- Settings -----------------------------------------------------------------
 
-TF ?= tofu
+TF ?= terraform
 # --no-install: always run the version pinned in package.json, never a download.
 CF := npx --no-install cf
 GIT_SHA := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
@@ -28,7 +28,7 @@ MEDIA_DIR := media
 # serves the old copy until this expires, so prefer new names for new versions.
 MEDIA_CACHE_CONTROL ?= public, max-age=86400
 
-# OpenTofu: R2 state credentials, endpoint, and account ID for the provider.
+# Terraform: R2 state credentials, endpoint, and account ID for the provider.
 TF_ENV = AWS_ACCESS_KEY_ID='$(TFSTATE_R2_ACCESS_KEY_ID)' \
 	AWS_SECRET_ACCESS_KEY='$(TFSTATE_R2_SECRET_ACCESS_KEY)' \
 	AWS_ENDPOINT_URL_S3='$(R2_ENDPOINT)' \
@@ -46,7 +46,7 @@ RCLONE_FLAGS = --exclude .gitkeep --exclude .DS_Store \
 
 .PHONY: help install build build-preview check test serve deploy preview preview-url clean \
 	media-sync media-sync-dry media-prune media-prune-dry \
-	infra-bootstrap infra-init infra-plan infra-apply infra-tofu infra-output infra-fmt infra-validate infra-test
+	infra-bootstrap infra-init infra-plan infra-apply infra-terraform infra-output infra-fmt infra-validate infra-test
 
 help: ## List targets
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -100,11 +100,11 @@ clean: ## Remove build output
 	rm -rf dist .cloudflare infra/$(TF_PLAN)
 
 # --- Media (R2) ---------------------------------------------------------------
-# The bucket name comes from OpenTofu state, so run `make infra-apply` first.
+# The bucket name comes from Terraform state, so run `make infra-apply` first.
 
 # Fails on an empty name: `rclone sync media r2:` would target the whole account.
 RESOLVE_MEDIA_BUCKET = bucket="$$($(TF_ENV) $(INFRA) output -raw media_bucket_name)"; \
-	if [ -z "$$bucket" ]; then echo "ERROR: no media bucket in OpenTofu outputs. Run 'make infra-apply' first."; exit 1; fi
+	if [ -z "$$bucket" ]; then echo "ERROR: no media bucket in Terraform outputs. Run 'make infra-apply' first."; exit 1; fi
 
 media-sync: tool-rclone guard-MEDIA_R2_ACCESS_KEY_ID guard-MEDIA_R2_SECRET_ACCESS_KEY ## Upload new/changed media/ files to R2 (never deletes)
 	@$(RESOLVE_MEDIA_BUCKET); \
@@ -131,9 +131,9 @@ media-prune: tool-rclone guard-MEDIA_R2_ACCESS_KEY_ID guard-MEDIA_R2_SECRET_ACCE
 		echo "==> Mirroring $(MEDIA_DIR)/ to r2:$$bucket (deleting remote extras)"; \
 		$(RCLONE_ENV) rclone sync $(MEDIA_DIR) "r2:$$bucket" $(RCLONE_FLAGS)
 
-# --- Infrastructure (OpenTofu, run locally — never from CI) --------------------
+# --- Infrastructure (Terraform, run locally — never from CI) ------------------
 
-infra-bootstrap: guard-CLOUDFLARE_API_TOKEN guard-CLOUDFLARE_ACCOUNT_ID guard-TFSTATE_BUCKET ## One-time: create the private R2 bucket for OpenTofu state
+infra-bootstrap: guard-CLOUDFLARE_API_TOKEN guard-CLOUDFLARE_ACCOUNT_ID guard-TFSTATE_BUCKET ## One-time: create the private R2 bucket for Terraform state
 	@echo "==> Ensuring state bucket '$(TFSTATE_BUCKET)' exists"
 	@if $(CF) r2 buckets get "$(TFSTATE_BUCKET)" >/dev/null 2>&1; then \
 		echo "    already exists"; \
@@ -141,8 +141,8 @@ infra-bootstrap: guard-CLOUDFLARE_API_TOKEN guard-CLOUDFLARE_ACCOUNT_ID guard-TF
 		$(CF) r2 buckets create --name "$(TFSTATE_BUCKET)"; \
 	fi
 
-infra-init: tool-$(TF) guard-TFSTATE_BUCKET guard-TFSTATE_R2_ACCESS_KEY_ID guard-TFSTATE_R2_SECRET_ACCESS_KEY guard-CLOUDFLARE_ACCOUNT_ID ## Connect OpenTofu to its R2 state
-	@echo "==> Initialising OpenTofu (state: r2://$(TFSTATE_BUCKET)/$(PROJECT_NAME)/terraform.tfstate)"
+infra-init: tool-$(TF) guard-TFSTATE_BUCKET guard-TFSTATE_R2_ACCESS_KEY_ID guard-TFSTATE_R2_SECRET_ACCESS_KEY guard-CLOUDFLARE_ACCOUNT_ID ## Connect Terraform to its R2 state
+	@echo "==> Initialising Terraform (state: r2://$(TFSTATE_BUCKET)/$(PROJECT_NAME)/terraform.tfstate)"
 	@$(TF_ENV) $(INFRA) init -input=false \
 		-backend-config=backend.hcl \
 		-backend-config="bucket=$(TFSTATE_BUCKET)" \
@@ -158,14 +158,14 @@ infra-apply: guard-CLOUDFLARE_API_TOKEN ## Apply the plan saved by infra-plan
 	@$(TF_ENV) $(INFRA) apply -input=false $(TF_PLAN)
 	@rm -f infra/$(TF_PLAN)
 
-infra-tofu: guard-ARGS ## Run a tofu command with credentials, e.g. ARGS="state list"
-	@echo "==> tofu $(ARGS)"
+infra-terraform: guard-ARGS ## Run a terraform command with credentials, e.g. ARGS="state list"
+	@echo "==> $(TF) $(ARGS)"
 	@$(TF_ENV) $(INFRA) $(ARGS)
 
 infra-output: ## Show infra outputs (media bucket, media base URL)
 	@$(TF_ENV) $(INFRA) output
 
-infra-fmt: tool-$(TF) ## Format OpenTofu files
+infra-fmt: tool-$(TF) ## Format Terraform files
 	@echo "==> Formatting infra/"
 	$(INFRA) fmt -recursive
 
@@ -175,7 +175,7 @@ infra-validate: tool-$(TF) ## Check formatting and validate (no credentials need
 	$(INFRA) fmt -check -recursive
 	$(INFRA) validate
 
-infra-test: tool-$(TF) ## Run OpenTofu tests against a mocked provider (no credentials needed)
+infra-test: tool-$(TF) ## Run Terraform tests against a mocked provider (no credentials needed)
 	@echo "==> Testing infra/"
 	$(INFRA) init -backend=false -input=false >/dev/null
 	$(INFRA) test
