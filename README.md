@@ -1,40 +1,51 @@
-# Static site skeleton for Cloudflare
+# Static site → Cloudflare Worker
 
-Serves static sites from Cloudflare's free tier, the Cloudflare equivalent of
-S3 + CloudFront:
+Deploys any pre-built static site (plain HTML, Astro, Hugo, Vite/React, ...) to
+a Cloudflare Worker and serves it on your domain or subdomain, for free.
 
-- **Site** → Workers Static Assets: free, unlimited requests, atomic deploys,
-  preview URLs.
-- **Heavy media** → an R2 bucket on `cdn.<domain>`, edge-cached, with free egress.
-- **CI/CD** → GitHub Actions: every PR gets a preview URL comment, and every
-  push to `main` deploys to production.
-- **Infra** → Terraform (state in R2): bucket, CDN domain, cache and hotlink rules.
-
-Works with any static site generator. Anything that writes to `dist/` works,
-and the example site is plain HTML. The only dependency is the
-[`cf` CLI](https://developers.cloudflare.com/cf/). Wrangler and Vite aren't used.
+- **Build:** any command that writes a folder of files (`dist/` by default).
+- **Deploy:** the [`cf` CLI](https://developers.cloudflare.com/cf/) uploads the
+  folder as Workers Static Assets and attaches your domains. No Wrangler, Vite,
+  Terraform or R2.
+- **CI/CD:** every PR gets a preview URL comment, and every push to `main`
+  deploys to production.
 
 ```
-PR push      → make test + make build → make preview → Worker Preview → URL comment on PR
-push to main → make test + make build → make deploy  → production
-you, locally → make media-sync  (media/ → R2)   ·   make infra-plan / infra-apply  (Terraform)
+PR push      → make test → make preview → preview URL comment on the PR
+push to main → make test → make deploy  → production, on the domains in cloudflare.config.ts
 ```
 
 ## Getting started
 
 1. Do the one-time setup in **[docs/HUMAN_SETUP.md](docs/HUMAN_SETUP.md)**:
-   Cloudflare account, tokens, GitHub secrets, and later a domain.
-2. Build and check locally:
+   a Cloudflare account, your domain on Cloudflare, one API token.
+2. Set `NAME` and `DOMAINS` at the top of `cloudflare.config.ts`.
+3. Deploy:
 
    ```sh
    fnm use && make install
-   make test build serve     # http://localhost:8788
+   make deploy
    ```
 
-3. Push to `main` to deploy.
+Using a coding agent? It reads [AGENTS.md](AGENTS.md).
 
-Using a coding agent? It reads [AGENTS.md](AGENTS.md), which covers the
-rules, the file map, how to verify changes and common tasks.
+## Use your own site generator
+
+The pipeline only needs `npm run build:site` to write the finished site to a
+folder. The example "generator" just copies `site/` to `dist/`.
+
+1. Point `build:site` in `package.json` at your build:
+   - Astro: `"astro build"` · Vite: `"vite build"` · Hugo: `"hugo --minify"`
+     (also install Hugo in `.github/workflows/deploy.yml`)
+2. If it writes somewhere other than `dist/`, set `DIST` in the `Makefile`
+   (Hugo: `public`, Create React App: `build`, Next.js static export: `out`).
+3. Single-page app (React, Vue, ...)? Set `notFoundHandling:
+   "single-page-application"` in `cloudflare.config.ts`, so deep links load
+   the app instead of a 404.
+4. Move `site/_headers` and `site/robots.txt` (and `site/404.html` unless it's a
+   single-page app) into the generator's static folder, then delete `site/`.
+5. If it emits content-hashed files, give that path
+   `Cache-Control: public, max-age=31536000, immutable` in `_headers`.
 
 ## Commands
 
@@ -42,27 +53,18 @@ Run `make help` for the full list.
 
 | Command | Does |
 | --- | --- |
-| `make build` | Build `dist/`, validate it, package cf Build Output |
-| `make test` | Unit tests |
-| `make serve` | Serve `dist/` locally |
-| `make deploy` | Deploy production (CI does this on `main`) |
+| `make build` | Build the site, check it, package it for `cf` |
+| `make test` | Unit tests for the deploy scripts |
+| `make deploy` | Deploy production and attach `DOMAINS` (CI does this on `main`) |
 | `make preview PREVIEW_NAME=x` | Deploy a preview (CI does this on PRs) |
-| `make media-sync[-dry]` | Upload new/changed `media/` files to R2 |
-| `make media-prune[-dry]` | Mirror `media/` to R2, deleting remote extras (`CONFIRM=yes`) |
-| `make infra-plan` / `infra-apply` | Review, then apply, infrastructure changes |
-| `make infra-validate` / `infra-test` | Terraform checks (no credentials needed) |
+| `make https ZONE=example.com` | Once per zone: redirect `http://` to `https://`, require TLS 1.2 |
 
-## Where things are configured
+## Costs and limits
 
-| What | Where |
-| --- | --- |
-| Project name, domain, CDN subdomain | `site.json` (read by both cf and Terraform) |
-| Worker behaviour (404s, trailing slashes) | `cloudflare.config.ts` |
-| Response headers | `site/_headers` |
-| Infra tunables (cache TTL, hotlink, bucket region) | `infra/terraform.tfvars` |
-| Secrets | `.env` locally (from `.env.example`), GitHub secrets in CI |
+Free. On the Workers Free plan, static asset requests are free and unlimited,
+and an assets-only Worker never runs billable code, so the account needs no
+payment method. The only cost is the domain.
 
-## Costs
-
-The site is free. R2 media is the only thing that can bill, and the defaults
-keep it in the free tier. Details and guards: [docs/COSTS.md](docs/COSTS.md).
+Limits: 20,000 files per deploy and 25 MiB per file. `make build` checks both.
+Anything bigger (video, large downloads) needs another host; this skeleton
+deliberately has none.

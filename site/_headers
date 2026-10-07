@@ -1,5 +1,5 @@
 # Cloudflare static-assets headers file: https://developers.cloudflare.com/workers/static-assets/headers/
-# Limits: 100 rules, 2,000 characters per line. `make check` validates this file.
+# Limits: 100 rules, 2,000 characters per line. Not validated locally, so check a preview after editing.
 
 /*
   X-Content-Type-Options: nosniff

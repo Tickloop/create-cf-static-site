@@ -1,41 +1,62 @@
-# Every push to main is built, checked, and deployed to production.
+# Pull requests get a preview URL comment; every push to main deploys production.
 name: Deploy
 
 on:
+  pull_request:
   push:
     branches: [main]
   workflow_dispatch:
 
-# One production deploy at a time; queue rather than cancel, so the newest
-# commit always ends up live.
+# A newer push to a PR replaces its in-flight preview. Production queues
+# instead, so the newest commit always ends up live.
 concurrency:
-  group: production
-  cancel-in-progress: false
+  group: deploy-${{ github.event.pull_request.number || 'production' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
 
 jobs:
-  checks:
-    uses: ./.github/workflows/checks.yml
-
   deploy:
-    needs: checks
     runs-on: ubuntu-latest
-    environment:
-      name: production
-      url: ${{ steps.url.outputs.url }}
+    permissions:
+      contents: read
+      pull-requests: write
     env:
       CF_SEND_TELEMETRY: "false"
+      # Fork and Dependabot PRs get no secrets, so they're built and checked only.
+      CAN_PREVIEW: ${{ github.event_name == 'pull_request' && secrets.CLOUDFLARE_API_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v7
-      - uses: ./.github/actions/setup
-      - run: make deploy
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: make install test
+
+      - name: Deploy production
+        if: github.event_name != 'pull_request'
+        run: make deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - id: url
-        name: Production URL
-        run: |
-          domain="$(node -p "require('./site.json').domain")"
-          if [ -n "$domain" ]; then echo "url=https://$domain" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Deploy preview
+        if: env.CAN_PREVIEW == 'true'
+        run: make preview PREVIEW_NAME=pr-${{ github.event.pull_request.number }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # One comment per PR, edited in place on every push.
+      - name: Comment preview URL
+        if: env.CAN_PREVIEW == 'true'
+        run: gh pr comment "$PR" --edit-last --create-if-none --body "**Preview:** $(make -s preview-url) (commit ${SHA::7})"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+
+      - name: Build only
+        if: github.event_name == 'pull_request' && env.CAN_PREVIEW != 'true'
+        run: make build

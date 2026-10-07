@@ -5,7 +5,7 @@
 // The layout below mirrors what `cf build` produces for a static project
 // (cf 1.0.0-beta.12). The format is beta: if a `cf` upgrade changes it, this
 // file and tests/build-output.test.mjs are the only places to update.
-import { cpSync, existsSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 export const BUILD_OUTPUT_VERSION_DIR = "v0";
@@ -39,7 +39,7 @@ export async function resolveWorkerConfig(configExport, { isPreview }) {
 	if (unsupported.length > 0) {
 		throw new Error(
 			`cloudflare.config.ts sets ${unsupported.join(", ")}, which need a Worker script. ` +
-				"This skeleton deploys static assets only; see AGENTS.md → 'Adding server-side logic'.",
+				"This skeleton deploys static assets only; see AGENTS.md → 'Add server-side logic'.",
 		);
 	}
 	return worker;
@@ -47,10 +47,6 @@ export async function resolveWorkerConfig(configExport, { isPreview }) {
 
 /** Replaces outDir/v0 with a fresh Build Output containing distDir as assets. */
 export function writeBuildOutput({ distDir, outDir, worker, isPreview }) {
-	if (!existsSync(distDir) || !statSync(distDir).isDirectory()) {
-		throw new Error(`${distDir}/ does not exist. Run the site build first.`);
-	}
-
 	const versionDir = join(outDir, BUILD_OUTPUT_VERSION_DIR);
 	const workerDir = join(versionDir, DEFAULT_WORKER_DIR);
 
