@@ -1,7 +1,10 @@
 # Cloudflare static-assets headers file: https://developers.cloudflare.com/workers/static-assets/headers/
 # Limits: 100 rules, 2,000 characters per line. Not validated locally, so check a preview after editing.
 
+# HSTS: after one visit, browsers use HTTPS only for a year. No includeSubDomains
+# or preload: they force HTTPS on every subdomain of the zone and are hard to undo.
 /*
+  Strict-Transport-Security: max-age=31536000
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY
