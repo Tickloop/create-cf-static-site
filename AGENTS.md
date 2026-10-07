@@ -89,9 +89,10 @@ validated locally, so test them on a preview.
 
 Edit `DOMAINS` in `cloudflare.config.ts` (rule 5). The zone must be active on
 the account and the token must cover it (HUMAN_SETUP steps 2–3). For a new
-zone, offer `make https ZONE=<zone>` (rule 6). An empty list leaves existing
-domains attached: `cf` only syncs domains when the list has some, so the human
-removes the last one in **Workers & Pages → the Worker → Settings → Domains & Routes**.
+zone, offer `make https ZONE=<zone>` (rule 6). The list can't be empty: the
+site has no `workers.dev` address, so a production build without domains
+fails. To move to another domain, replace the list; the next deploy detaches
+the hostnames that are no longer in it.
 
 ### Upgrade `cf`
 
@@ -116,6 +117,7 @@ Discuss it with the human before starting.
 | --- | --- |
 | `make preview` fails because the Worker doesn't exist | Previews attach to an existing Worker. Run `make deploy` once (HUMAN_SETUP step 5) |
 | Deploy fails attaching a domain: zone not found or 403 | The zone isn't active on this account, or the token lacks a zone permission (HUMAN_SETUP step 3) |
+| `make build`: DOMAINS is empty | Production needs at least one domain; there's no `workers.dev` fallback |
 | `make build`: missing 404.html | Add a 404 page, or for a single-page app set `notFoundHandling: "single-page-application"` |
 | `cf` asks about `--mode` | This project's Build Output records no mode. Never pass `--mode` |
 | `This build output is for a Preview` | Production was deployed from preview output. `make deploy` rebuilds, so use it rather than raw `cf` |

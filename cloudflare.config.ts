@@ -6,8 +6,8 @@ import { defineConfig } from "cf/config";
 // leaves the old one (and its domains) running until you delete it.
 const NAME = "static-site";
 
-// Hostnames that serve the site, apex or subdomain. Each one's zone must be
-// active on this Cloudflare account. Empty = only <NAME>.<subdomain>.workers.dev.
+// Hostnames that serve the site, apex or subdomain: the only public addresses
+// it has. Each one's zone must be active on this Cloudflare account.
 const DOMAINS = ["lavavite.com", "www.lavavite.com"];
 
 // MARK: Worker
@@ -30,8 +30,10 @@ export default defineConfig(({ isPreview }) => ({
 			// single-page app (React, Vue, ...) needs "single-page-application".
 			notFoundHandling: "404-page",
 		},
-		// workers.dev stays on: PR preview URLs are served from it.
-		workersDev: true,
+		// No <NAME>.<subdomain>.workers.dev copy of the site: production lives on
+		// DOMAINS only. Previews keep their own workers.dev URLs, which Cloudflare
+		// controls separately (previewUrls).
+		workersDev: false,
 		previewUrls: true,
 		// Each production deploy makes the Worker's custom domains match this list,
 		// creating DNS records and certificates. Previews must never claim them.

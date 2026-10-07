@@ -42,6 +42,10 @@ export async function resolveWorkerConfig(configExport, { isPreview }) {
 				"This skeleton deploys static assets only; see AGENTS.md → 'Add server-side logic'.",
 		);
 	}
+	// Without workers.dev, the custom domains are production's only address.
+	if (!isPreview && worker.workersDev !== true && !worker.domains?.length) {
+		throw new Error("cloudflare.config.ts: DOMAINS is empty, so production would have no public address.");
+	}
 	return worker;
 }
 

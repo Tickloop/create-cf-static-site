@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import { resolveWorkerConfig, writeBuildOutput } from "../scripts/lib/build-output.mjs";
 import { MINIMAL_SITE, makeTree } from "./helpers.mjs";
 
-const WORKER = { name: "site", compatibilityDate: "2026-10-01" };
+const WORKER = { name: "site", compatibilityDate: "2026-10-01", domains: ["example.com"] };
 const readJson = (path) => JSON.parse(readFileSync(path, "utf8"));
 
 describe("resolveWorkerConfig", () => {
@@ -28,6 +28,13 @@ describe("resolveWorkerConfig", () => {
 		await assert.rejects(resolveWorkerConfig({}, { isPreview: false }), /must define `worker`/);
 		await assert.rejects(resolveWorkerConfig({ worker: { compatibilityDate: "2026-10-01" } }, { isPreview: false }), /name/);
 		await assert.rejects(resolveWorkerConfig({ worker: { name: "x", compatibilityDate: "Oct 1" } }, { isPreview: false }), /YYYY-MM-DD/);
+	});
+
+	it("refuses a production config with no domains and no workers.dev", async () => {
+		const worker = { ...WORKER, domains: [], workersDev: false };
+		await assert.rejects(resolveWorkerConfig({ worker }, { isPreview: false }), /no public address/);
+		await assert.doesNotReject(resolveWorkerConfig({ worker }, { isPreview: true }));
+		await assert.doesNotReject(resolveWorkerConfig({ worker: { ...worker, workersDev: true } }, { isPreview: false }));
 	});
 
 	it("refuses fields that need a Worker script", async () => {

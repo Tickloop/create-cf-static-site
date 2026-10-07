@@ -1,7 +1,8 @@
 # Static site → Cloudflare Worker
 
 Deploys any pre-built static site (plain HTML, Astro, Hugo, Vite/React, ...) to
-a Cloudflare Worker and serves it on your domain or subdomain, for free.
+a Cloudflare Worker and serves it on your domain or subdomain, for free. A
+domain on Cloudflare is required: production has no `workers.dev` address.
 
 - **Build:** any command that writes a folder of files (`dist/` by default).
 - **Deploy:** the [`cf` CLI](https://developers.cloudflare.com/cf/) uploads the
