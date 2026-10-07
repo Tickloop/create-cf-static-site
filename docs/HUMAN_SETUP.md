@@ -101,5 +101,6 @@ What runs where (`.github/workflows/deploy.yml`):
 | Event | Result |
 | --- | --- |
 | PR opened / pushed | tests → Worker Preview → URL comment on the PR |
+| PR closed (merged or not) | the PR's preview is deleted |
 | Push to `main` | tests → production deploy |
 | PR from a fork or Dependabot | tests and build only (they get no secrets) |

@@ -8,12 +8,13 @@ domain on Cloudflare is required: production has no `workers.dev` address.
 - **Deploy:** the [`cf` CLI](https://developers.cloudflare.com/cf/) uploads the
   folder as Workers Static Assets and attaches your domains. No Wrangler, Vite,
   Terraform or R2.
-- **CI/CD:** every PR gets a preview URL comment, and every push to `main`
-  deploys to production.
+- **CI/CD:** every PR gets a preview URL comment, closing the PR deletes the
+  preview, and every push to `main` deploys to production.
 
 ```
-PR push      → make test → make preview → preview URL comment on the PR
-push to main → make test → make deploy  → production, on the domains in cloudflare.config.ts
+PR push      → make test → make preview        → preview URL comment on the PR
+PR closed    →             make preview-delete → preview removed
+push to main → make test → make deploy         → production, on the domains in cloudflare.config.ts
 ```
 
 ## Getting started
@@ -58,6 +59,7 @@ Run `make help` for the full list.
 | `make test` | Unit tests for the deploy scripts |
 | `make deploy` | Deploy production and attach `DOMAINS` (CI does this on `main`) |
 | `make preview PREVIEW_NAME=x` | Deploy a preview (CI does this on PRs) |
+| `make preview-delete PREVIEW_NAME=x` | Delete a preview (CI does this when a PR closes) |
 | `make https ZONE=example.com` | Once per zone: redirect `http://` to `https://`, require TLS 1.2 |
 
 ## Costs and limits

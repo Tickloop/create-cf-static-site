@@ -20,7 +20,7 @@ CF := npx --no-install cf
 GIT_SHA := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 PREVIEW_RESULT := .cloudflare/preview-result.json
 
-.PHONY: help install test build build-preview deploy preview preview-url https clean
+.PHONY: help install test build build-preview deploy preview preview-url preview-delete https clean
 
 help: ## List targets
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -52,6 +52,9 @@ preview: guard-CLOUDFLARE_API_TOKEN guard-CLOUDFLARE_ACCOUNT_ID guard-PREVIEW_NA
 
 preview-url: ## Print the URL from the last `make preview`
 	@node scripts/preview-url.mjs $(PREVIEW_RESULT)
+
+preview-delete: guard-CLOUDFLARE_API_TOKEN guard-CLOUDFLARE_ACCOUNT_ID guard-PREVIEW_NAME ## Delete a preview and its deployments: make preview-delete PREVIEW_NAME=pr-12
+	node scripts/delete-preview.mjs "$(PREVIEW_NAME)"
 
 # Zone-wide, so it also affects anything else on the zone. New zones default to
 # serving plain http:// and accepting TLS 1.0.

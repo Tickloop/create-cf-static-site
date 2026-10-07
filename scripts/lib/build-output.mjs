@@ -6,14 +6,23 @@
 // (cf 1.0.0-beta.12). The format is beta: if a `cf` upgrade changes it, this
 // file and tests/build-output.test.mjs are the only places to update.
 import { cpSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 export const BUILD_OUTPUT_VERSION_DIR = "v0";
 export const DEFAULT_WORKER_DIR = join("workers", "default");
+const CONFIG_PATH = "cloudflare.config.ts";
 
 // Fields that need a Worker script or bundler. This packager only ships static
 // assets, so it refuses them instead of silently deploying something broken.
 const UNSUPPORTED_WORKER_FIELDS = ["entrypoint", "env", "durableObjects", "triggers"];
+
+/** Imports cloudflare.config.ts from the working directory and resolves its `worker`. */
+export async function loadWorkerConfig({ isPreview }) {
+	// Node 24 strips TypeScript types natively, so the config imports directly.
+	const { default: configExport } = await import(pathToFileURL(resolve(CONFIG_PATH)).href);
+	return resolveWorkerConfig(configExport, { isPreview });
+}
 
 /**
  * Evaluates the default export of cloudflare.config.ts (object or function

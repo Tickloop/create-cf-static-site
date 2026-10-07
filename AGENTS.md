@@ -8,8 +8,9 @@ Static Assets, free tier) and attaches its domains. GitHub Actions deploys.
 There is no server code, Terraform or R2, by design.
 
 ```
-PR push      → make test → make preview PREVIEW_NAME=pr-N → cf previews deploy --prebuilt → URL comment
-push to main → make test → make deploy                    → cf deploy --prebuilt (+ DOMAINS) → production
+PR push      → make test → make preview PREVIEW_NAME=pr-N        → cf previews deploy --prebuilt → URL comment
+PR closed    →             make preview-delete PREVIEW_NAME=pr-N → Cloudflare API: delete the preview
+push to main → make test → make deploy                           → cf deploy --prebuilt (+ DOMAINS) → production
 ```
 
 ## Rules (read before changing anything)
@@ -50,8 +51,9 @@ push to main → make test → make deploy                    → cf deploy --pr
 | `scripts/package-output.mjs`, `scripts/lib/build-output.mjs` | Checks `DIST`, then writes `.cloudflare/output/v0` (cf Build Output) |
 | `scripts/lib/dist-checks.mjs` | Pre-deploy checks: `index.html`, `404.html` (unless SPA), file count and size limits |
 | `scripts/preview-url.mjs`, `scripts/lib/preview-result.mjs` | Extracts the preview URL for the PR comment |
+| `scripts/delete-preview.mjs`, `scripts/lib/preview-api.mjs` | Deletes a preview and its deployments through the API (`cf` can't yet) |
 | `tests/*.test.mjs` | Unit tests (`make test`, Node's built-in runner, no deps) |
-| `.github/workflows/deploy.yml` | The only workflow: previews on PRs, production on `main` |
+| `.github/workflows/deploy.yml` | The only workflow: previews on PRs (deleted when the PR closes), production on `main` |
 | `docs/HUMAN_SETUP.md` | Everything a human must do, in order |
 
 ## Verify your change
@@ -122,5 +124,6 @@ Discuss it with the human before starting.
 | `cf` asks about `--mode` | This project's Build Output records no mode. Never pass `--mode` |
 | `This build output is for a Preview` | Production was deployed from preview output. `make deploy` rebuilds, so use it rather than raw `cf` |
 | PR got a build but no preview | The PR is from a fork or Dependabot, or the repo has no `CLOUDFLARE_API_TOKEN` secret |
-| Old previews pile up | `cf` (beta) has no preview-delete command yet. They're harmless. Check `cf cli search "delete preview"` after upgrades |
+| A preview outlived its PR | CI deletes `pr-N` when the PR closes. Previews made by hand, or before that existed, need `make preview-delete PREVIEW_NAME=<name>`. If `cf` gains a delete command (`cf cli search "delete preview"`), switch the script to it |
+| A deleted preview's per-deploy URL (`<id>-<worker>.<subdomain>.workers.dev`) still loads | Seen right after a delete: the API reports it gone but the URL kept serving for a while. Nothing else can delete it |
 | 401/403 from Cloudflare | The token is missing a permission. Ask the human to add it (HUMAN_SETUP step 3) |
