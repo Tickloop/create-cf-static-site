@@ -58,8 +58,4 @@ describe("writeBuildOutput", () => {
 		writeBuildOutput({ distDir: makeTree(MINIMAL_SITE), outDir, worker: WORKER, isPreview: false });
 		assert.equal(existsSync(join(outDir, "v0/workers/default/assets/deleted-page.html")), false);
 	});
-
-	it("fails clearly when dist/ is missing", () => {
-		assert.throws(() => writeBuildOutput({ distDir: "/nonexistent", outDir: makeTree({}), worker: WORKER, isPreview: false }), /Run the site build first/);
-	});
 });

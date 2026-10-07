@@ -1,39 +1,31 @@
-// Guards the real project files (not fixtures): site.json, cloudflare.config.ts
-// and the example site must stay deployable.
+// Guards the real project files (not fixtures): cloudflare.config.ts and the
+// example site must stay deployable.
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import configExport, { workerConfig } from "../cloudflare.config.ts";
+import configExport from "../cloudflare.config.ts";
 import { resolveWorkerConfig } from "../scripts/lib/build-output.mjs";
 import { checkDist } from "../scripts/lib/dist-checks.mjs";
 
-const site = JSON.parse(readFileSync(new URL("../site.json", import.meta.url), "utf8"));
-
-describe("site.json", () => {
-	it("has exactly the keys Terraform declares as variables", () => {
-		// `terraform -var-file=../site.json` only warns on undeclared keys, so a key added
-		// here without a matching variable in infra/variables.tf would be silently ignored.
-		assert.deepEqual(Object.keys(site).sort(), ["cdn_subdomain", "domain", "project_name"]);
-	});
-});
+const production = await resolveWorkerConfig(configExport, { isPreview: false });
+const preview = await resolveWorkerConfig(configExport, { isPreview: true });
 
 describe("cloudflare.config.ts", () => {
-	it("names the Worker after site.json and passes the packager's validation", async () => {
-		const worker = await resolveWorkerConfig(configExport, { isPreview: false });
-		assert.equal(worker.name, site.project_name);
-		assert.deepEqual(worker.domains, site.domain ? [site.domain] : []);
+	it("uses one Worker name that fits a preview hostname", () => {
+		// Preview URLs are <preview>-<name>.<subdomain>.workers.dev, and a DNS
+		// label is at most 63 characters.
+		assert.equal(preview.name, production.name);
+		assert.match(production.name, /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/);
 	});
 
-	it("attaches the domain to production but never to previews", () => {
-		const withDomain = { ...site, domain: "example.com" };
-		assert.deepEqual(workerConfig(withDomain, { isPreview: false }).domains, ["example.com"]);
-		assert.deepEqual(workerConfig(withDomain, { isPreview: true }).domains, []);
-		assert.deepEqual(workerConfig({ ...site, domain: "" }, { isPreview: false }).domains, []);
+	it("attaches custom domains in production only", () => {
+		// A preview listing them would move the live domains onto the preview.
+		assert.deepEqual(preview.domains, []);
+		for (const hostname of production.domains) assert.match(hostname, /^([a-z0-9-]+\.)+[a-z]{2,}$/);
 	});
 });
 
 describe("example site", () => {
 	it("passes the dist checks as-is (site/ is copied verbatim to dist/)", () => {
-		assert.deepEqual(checkDist("site"), []);
+		assert.deepEqual(checkDist("site", production), []);
 	});
 });
