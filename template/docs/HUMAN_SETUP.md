@@ -15,7 +15,8 @@ Legend: 🧑 = only you can do it · 🤖 = an agent can run it once the 🧑 st
 | fnm + Node 24 | runs `cf` and the build scripts | `fnm install` (reads `.nvmrc`) then `fnm use` |
 | git, make, rsync | repo, task runner, example build | preinstalled on macOS and Linux |
 
-Then run `make install` (🤖), which installs the pinned `cf` CLI into `node_modules/`.
+`npx create-cf-static-site` already installed the pinned `cf` CLI into
+`node_modules/`. On a fresh clone, run `make install` (🤖) to do the same.
 
 ## 2. Cloudflare account and domain 🧑
 
@@ -72,9 +73,10 @@ Fill in `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN`. Use plain
 
 ## 5. Go live 🤖 → check 🧑
 
-1. 🤖 Set `NAME` and `DOMAINS` at the top of `cloudflare.config.ts`, for
-   example `["example.com", "www.example.com"]` or `["blog.example.com"]`.
-   Pick the name carefully: renaming later creates a second Worker.
+1. 🤖 Set `DOMAINS` at the top of `cloudflare.config.ts`, for example
+   `["example.com", "www.example.com"]` or `["blog.example.com"]`. Check
+   `NAME` too (it starts as the folder name). Pick it carefully: renaming
+   later creates a second Worker.
 2. 🧑 Check **DNS → Records** for old records on those hostnames, for example
    from a previous host. Deploying replaces them: `cf` asks first when run in
    a terminal, but CI replaces them without asking.

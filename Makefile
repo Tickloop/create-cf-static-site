@@ -1,69 +1,32 @@
-# Static site → Cloudflare Worker. Run `make help` to list targets.
-# CI calls these same targets, so local runs and CI behave the same.
+# create-cf-static-site: the npm package that scaffolds template/.
+# Run `make help` to list targets.
 
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 .DEFAULT_GOAL := help
 
-# Local secrets (copy .env.example → .env). Optional because CI sets the same
-# variables from GitHub secrets instead.
--include .env
-# cf reads these from the environment.
-export CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_API_TOKEN
+# Where `make smoke` scaffolds its throwaway project.
+SMOKE_DIR := $(shell mktemp -u /tmp/cf-static-site-smoke.XXXXXX)
 
-# MARK: Settings
-
-# Where `npm run build:site` writes the finished site (Hugo: public, CRA: build).
-DIST ?= dist
-# --no-install: always run the version pinned in package.json, never a download.
-CF := npx --no-install cf
-GIT_SHA := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
-PREVIEW_RESULT := .cloudflare/preview-result.json
-
-.PHONY: help install test build build-preview deploy preview preview-url preview-delete https clean
+.PHONY: help install smoke pack-check
 
 help: ## List targets
-	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
+	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
 
-# MARK: Build
+install: ## Install the template's pinned cf CLI, to work on the template in place
+	@echo "Installing template dependencies..."
+	npm --prefix template ci
 
-install: ## Install the pinned cf CLI
-	npm ci
+smoke: ## Scaffold a throwaway project, then run its tests and build
+	@echo "Scaffolding into $(SMOKE_DIR)..."
+	node bin/create.mjs $(SMOKE_DIR) --name smoke-test
+	@echo "Setting a placeholder domain (the template ships with none)..."
+	node -e 'const fs = require("fs"); const p = process.argv[1]; fs.writeFileSync(p, fs.readFileSync(p, "utf8").replace("const DOMAINS: string[] = [];", "const DOMAINS = [\"example.com\"];"))' $(SMOKE_DIR)/cloudflare.config.ts
+	@echo "Running the project's tests and build..."
+	$(MAKE) -C $(SMOKE_DIR) test build
+	@echo "Smoke test passed. Removing $(SMOKE_DIR)..."
+	rm -rf $(SMOKE_DIR)
 
-test: ## Unit tests for the deploy scripts
-	npm test
-
-build: ## Build the site, check it, and package it for production
-	npm run -s build:site
-	node scripts/package-output.mjs $(DIST)
-
-build-preview: ## Same as build, packaged as a Worker Preview
-	npm run -s build:site
-	node scripts/package-output.mjs $(DIST) --preview
-
-# MARK: Deploy
-
-deploy: guard-CLOUDFLARE_API_TOKEN guard-CLOUDFLARE_ACCOUNT_ID build ## Deploy production and attach DOMAINS from cloudflare.config.ts
-	$(CF) deploy --prebuilt --message "$(GIT_SHA)"
-
-preview: guard-CLOUDFLARE_API_TOKEN guard-CLOUDFLARE_ACCOUNT_ID guard-PREVIEW_NAME build-preview ## Deploy a preview: make preview PREVIEW_NAME=pr-12
-	$(CF) previews deploy --prebuilt "$(PREVIEW_NAME)" | tee $(PREVIEW_RESULT)
-	@echo "Preview URL: $$(node scripts/preview-url.mjs $(PREVIEW_RESULT))"
-
-preview-url: ## Print the URL from the last `make preview`
-	@node scripts/preview-url.mjs $(PREVIEW_RESULT)
-
-preview-delete: guard-CLOUDFLARE_API_TOKEN guard-CLOUDFLARE_ACCOUNT_ID guard-PREVIEW_NAME ## Delete a preview and its deployments: make preview-delete PREVIEW_NAME=pr-12
-	node scripts/delete-preview.mjs "$(PREVIEW_NAME)"
-
-# Zone-wide, so it also affects anything else on the zone. New zones default to
-# serving plain http:// and accepting TLS 1.0.
-https: guard-CLOUDFLARE_API_TOKEN guard-ZONE ## Once per zone: redirect http→https, require TLS 1.2 (make https ZONE=example.com)
-	$(CF) zones settings edit always_use_https --zone "$(ZONE)" --body '{"value":"on"}'
-	$(CF) zones settings edit min_tls_version --zone "$(ZONE)" --body '{"value":"1.2"}'
-
-clean: ## Remove build output
-	rm -rf $(DIST) .cloudflare
-
-guard-%:
-	@if [ -z "$($*)" ]; then echo "ERROR: $* is not set. Pass it on the command line (make <target> $*=...) or add it to .env (see .env.example)."; exit 1; fi
+pack-check: ## List the files `npm publish` would upload, without uploading
+	@echo "Files in the package tarball:"
+	npm pack --dry-run

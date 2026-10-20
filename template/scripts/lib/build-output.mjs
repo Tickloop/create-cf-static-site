@@ -13,6 +13,11 @@ export const BUILD_OUTPUT_VERSION_DIR = "v0";
 export const DEFAULT_WORKER_DIR = join("workers", "default");
 const CONFIG_PATH = "cloudflare.config.ts";
 
+// Preview URLs are <preview>-<name>.<subdomain>.workers.dev, and a DNS label is
+// at most 63 characters, so names stay short. create-cf-static-site checks
+// names against this too.
+export const WORKER_NAME_PATTERN = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
+
 // Fields that need a Worker script or bundler. This packager only ships static
 // assets, so it refuses them instead of silently deploying something broken.
 const UNSUPPORTED_WORKER_FIELDS = ["entrypoint", "env", "durableObjects", "triggers"];

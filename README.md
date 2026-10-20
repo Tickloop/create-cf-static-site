@@ -1,73 +1,52 @@
-# Static site → Cloudflare Worker
+# create-cf-static-site
 
-Deploys any pre-built static site (plain HTML, Astro, Hugo, Vite/React, ...) to
-a Cloudflare Worker and serves it on your domain or subdomain, for free. A
-domain on Cloudflare is required: production has no `workers.dev` address.
+Creates a static site project that deploys to a Cloudflare Worker (Workers
+Static Assets, free tier) on your own domain, with GitHub Actions CI/CD: a
+preview URL on every PR and a production deploy on every push to `main`.
 
-- **Build:** any command that writes a folder of files (`dist/` by default).
-- **Deploy:** the [`cf` CLI](https://developers.cloudflare.com/cf/) uploads the
-  folder as Workers Static Assets and attaches your domains. No Wrangler, Vite,
-  Terraform or R2.
-- **CI/CD:** every PR gets a preview URL comment, closing the PR deletes the
-  preview, and every push to `main` deploys to production.
-
-```
-PR push      → make test → make preview        → preview URL comment on the PR
-PR closed    →             make preview-delete → preview removed
-push to main → make test → make deploy         → production, on the domains in cloudflare.config.ts
+```sh
+npx create-cf-static-site my-site
+# or: npm create cf-static-site my-site
 ```
 
-## Getting started
+| Option | Does |
+| --- | --- |
+| `<dir>` | New or empty folder for the project (`.` works in an empty folder) |
+| `--name <name>` | Worker name. Default: the folder name, made lowercase with dashes |
 
-1. Do the one-time setup in **[docs/HUMAN_SETUP.md](docs/HUMAN_SETUP.md)**:
-   a Cloudflare account, your domain on Cloudflare, one API token.
-2. Set `NAME` and `DOMAINS` at the top of `cloudflare.config.ts`.
-3. Deploy:
+It copies the project, sets the Worker name, and runs `npm install` to get the
+pinned `cf` CLI. Then:
 
-   ```sh
-   fnm use && make install
-   make deploy
-   ```
+1. Set `DOMAINS` in `cloudflare.config.ts`. It starts empty, and
+   `make test` / `make build` fail until you set it.
+2. Do the one-time setup in the new project's `docs/HUMAN_SETUP.md`
+   (Cloudflare account, domain, API token).
+3. `make deploy`.
 
-Using a coding agent? It reads [AGENTS.md](AGENTS.md).
+The generated project's own `README.md` covers the rest: swapping in a site
+generator (Astro, Hugo, Vite, ...), commands, costs and limits.
 
-## Use your own site generator
+Needs Node 24+, plus `make`, `git` and `rsync` (preinstalled on macOS and Linux).
 
-The pipeline only needs `npm run build:site` to write the finished site to a
-folder. The example "generator" just copies `site/` to `dist/`.
+## Working on this package
 
-1. Point `build:site` in `package.json` at your build:
-   - Astro: `"astro build"` · Vite: `"vite build"` · Hugo: `"hugo --minify"`
-     (also install Hugo in `.github/workflows/deploy.yml`)
-2. If it writes somewhere other than `dist/`, set `DIST` in the `Makefile`
-   (Hugo: `public`, Create React App: `build`, Next.js static export: `out`).
-3. Single-page app (React, Vue, ...)? Set `notFoundHandling:
-   "single-page-application"` in `cloudflare.config.ts`, so deep links load
-   the app instead of a 404.
-4. Move `site/_headers` and `site/robots.txt` (and `site/404.html` unless it's a
-   single-page app) into the generator's static folder, then delete `site/`.
-5. If it emits content-hashed files, give that path
-   `Cache-Control: public, max-age=31536000, immutable` in `_headers`.
-
-## Commands
-
-Run `make help` for the full list.
+`template/` is the project that gets copied. `bin/create.mjs` is the CLI.
 
 | Command | Does |
 | --- | --- |
-| `make build` | Build the site, check it, package it for `cf` |
-| `make test` | Unit tests for the deploy scripts |
-| `make deploy` | Deploy production and attach `DOMAINS` (CI does this on `main`) |
-| `make preview PREVIEW_NAME=x` | Deploy a preview (CI does this on PRs) |
-| `make preview-delete PREVIEW_NAME=x` | Delete a preview (CI does this when a PR closes) |
-| `make https ZONE=example.com` | Once per zone: redirect `http://` to `https://`, require TLS 1.2 |
+| `make smoke` | Scaffold a throwaway project, then run its `make test build` |
+| `make pack-check` | List the files `npm publish` would upload |
+| `make install` | Install `cf` into `template/` to run its targets in place |
 
-## Costs and limits
+Inside `template/`, `make test` and `make build` need a domain in `DOMAINS`, so
+`make smoke` is the easy way to check a template change.
 
-Free. On the Workers Free plan, static asset requests are free and unlimited,
-and an assets-only Worker never runs billable code, so the account needs no
-payment method. The only cost is the domain.
+## License
 
-Limits: 20,000 files per deploy and 25 MiB per file. `make build` checks both.
-Anything bigger (video, large downloads) needs another host; this skeleton
-deliberately has none.
+[MIT](LICENSE). Use it for anything, closed source included, as long as the
+license notice stays. Every new project gets a copy of `LICENSE`.
+
+## Publishing
+
+A human step: `npm login`, bump `version` in `package.json`, run
+`make smoke pack-check`, then `npm publish`.

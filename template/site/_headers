@@ -9,9 +9,3 @@
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY
   Permissions-Policy: camera=(), microphone=(), geolocation=()
-
-# Unhashed filenames, so keep browser caching short. If your generator emits
-# content-hashed files (e.g. Astro's /_astro/*), give that path
-# `Cache-Control: public, max-age=31536000, immutable` instead.
-/assets/*
-  Cache-Control: public, max-age=3600

@@ -1,15 +1,37 @@
 {
-  "name": "static-site",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "build:site": "rsync -a --delete --exclude=.DS_Store site/ dist/",
-    "test": "node --test \"tests/**/*.test.mjs\""
+  "name": "create-cf-static-site",
+  "version": "0.1.0",
+  "description": "Scaffold a static site that deploys to a Cloudflare Worker (free tier), with PR previews and production CI/CD",
+  "keywords": [
+    "cloudflare",
+    "workers",
+    "static-site",
+    "create",
+    "scaffold"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tickloop/create-cf-static-site.git"
   },
+  "homepage": "https://github.com/Tickloop/create-cf-static-site#readme",
+  "bugs": {
+    "url": "https://github.com/Tickloop/create-cf-static-site/issues"
+  },
+  "type": "module",
+  "bin": {
+    "create-cf-static-site": "bin/create.mjs"
+  },
+  "files": [
+    "bin",
+    "template",
+    "!template/node_modules",
+    "!template/dist",
+    "!template/.cloudflare",
+    "!template/.env",
+    "!template/package-lock.json"
+  ],
   "engines": {
     "node": ">=24"
-  },
-  "devDependencies": {
-    "cf": "1.0.0-beta.12"
   }
 }

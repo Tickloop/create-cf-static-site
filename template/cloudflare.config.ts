@@ -8,7 +8,10 @@ const NAME = "static-site";
 
 // Hostnames that serve the site, apex or subdomain: the only public addresses
 // it has. Each one's zone must be active on this Cloudflare account.
-const DOMAINS = ["lavavite.com", "www.lavavite.com"];
+// For example ["example.com", "www.example.com"] or ["blog.example.com"].
+// Empty until you set it, so `make test` and `make build` stop you deploying
+// a site with no address.
+const DOMAINS: string[] = [];
 
 // MARK: Worker
 
